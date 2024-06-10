@@ -2,12 +2,11 @@
 
 <!-- PROJECT LOGO -->
 <br />
-<div align="center">
 
 <h3 align="center">chatStatistics</h3>
 
 <p align="center">
-    <a href="https://chatstatistics.vercel.com">View Website</a>
+    <a href="https://chatstatistics.vercel.app">View Website</a>
     ·
     <a href="https://github.com/binarypillow/chatstatistics/issues">Report Bug</a>
     ·
