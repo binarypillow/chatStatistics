@@ -1,0 +1,20 @@
+{% extends "layout.html" %}
+{% block title %}Index{% endblock %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block content %}
+  <h1 class="text-center my-5">{{app_title}}</h1>
+  <h4><u>Upload</u></h4>
+  <p class="mb-2"><strong class="text-black">Select</strong> the exported Telegram chat in <strong class="text-black">json</strong> format and click on "<strong class="text-black">Upload</strong>"</p>
+  <form class="input-group mb-3" method="post" action="/upload" enctype="multipart/form-data">
+    <input class="form-control" type="file" id="fileInput" name="file">
+    <button class="btn btn-dark" type="submit" id="uploadButton" disabled>Upload</button>
+  </form>
+
+  <script>
+    document.getElementById('fileInput').addEventListener('change', function() {
+      document.getElementById('uploadButton').disabled = !this.value;
+    });
+  </script>
+{% endblock %}
