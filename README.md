@@ -3,9 +3,11 @@
 <!-- PROJECT LOGO -->
 <br />
 
-<h3 align="center">chatStatistics</h3>
+<div align="center">
+  <font size="10">📊</font>
+  <h3 align="center">chatStatistics</h3>
 
-<p align="center">
+  <p align="center">
     <a href="https://chatstatistics.vercel.app">View Website</a>
     ·
     <a href="https://github.com/binarypillow/chatstatistics/issues">Report Bug</a>
@@ -25,6 +27,7 @@
         <li><a href="#deployed-with">Deployed With</a></li>
       </ul>
     </li>
+    <li><a href="#quickstart">Quickstart</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
 </ol>
@@ -32,7 +35,8 @@
 
 ## About The Project
 
-A small flask website to get some statistics on an existing telegram chat.
+Telegram has a built-in feature for group statistics, but it is not available for private groups.
+This small website in flask provides some statistics on an existing telegram chat.
 
 ### Built With
 
@@ -44,6 +48,10 @@ A small flask website to get some statistics on an existing telegram chat.
 ### Deployed With
 
 - [🔼 Vercel](https://vercel.com)
+
+## Quickstart
+
+Export the chat in JSON format with the built-in "export" feature and upload the JSON file to the site.
 
 ## Contributing
 
