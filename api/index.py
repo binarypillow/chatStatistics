@@ -9,20 +9,31 @@ app = Flask(__name__)
 
 APP_NAME = "chatStatistics"
 
-LABELS = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-]
+LABELS = {
+    "month": [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ],
+    "day": [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ],
+}
 
 
 def allowed_file(filename):
@@ -40,61 +51,68 @@ def upload_file():
         return "Invalid file type. Only JSON files are allowed.", 400
     file = request.files["file"]
     data = json.load(file)
-    name = data["name"]
-    stats = calculate_statistics(data)
-    return render_template("stats.html", name=name, stats=stats, app_title=APP_NAME)
+    group_name = data["name"]
+
+    first_timestamp = data["messages"][0]["date"]
+    data_by_year = defaultdict(list)
+    for msg in data["messages"]:
+        year = datetime.strptime(msg["date"], "%Y-%m-%dT%H:%M:%S").year
+        data_by_year[year].append(msg)
+
+    stats = calculate_statistics(data_by_year, first_timestamp)
+
+    return render_template(
+        "stats.html", name=group_name, stats=stats, app_title=APP_NAME
+    )
 
 
-def parse_dates(data):
-    return {
-        msg["date"]: datetime.strptime(msg["date"], "%Y-%m-%dT%H:%M:%S") for msg in data
-    }
+def get_user_messages(msgs):
+    user_msgs = defaultdict(int)
+    for m in msgs:
+        user_name = m["from"]
+        user_id = m["from_id"]
+        user_msgs[(user_id, user_name)] += 1
+    return user_msgs
 
 
-def get_user_messages_per_year(data, parsed_dates):
-    user_messages_per_year = defaultdict(lambda: defaultdict(int))
-    for msg in data:
-        date = parsed_dates[msg["date"]]
-        user_messages_per_year[date.year][(msg["from_id"], msg["from"])] += 1
-    return user_messages_per_year
+def get_top_users(msgs):
+    sorted_msgs = sorted(msgs.items(), key=lambda item: item[1], reverse=True)
+    return dict(sorted_msgs[:3])
 
 
-def get_top_users_per_year(user_messages_per_year):
-    return {
-        year: dict(sorted(users.items(), key=lambda item: item[1], reverse=True)[:3])
-        for year, users in user_messages_per_year.items()
-    }
+def get_time_dist(msgs, time_unit):
+    if time_unit == "month":
+        time_dist = {i: 0 for i in range(1, 13)}
+    elif time_unit == "day":
+        time_dist = {i: 0 for i in range(7)}
+    else:
+        raise ValueError("Invalid time_unit. Choose either 'month', 'day' or 'hour'.")
+
+    for m in msgs:
+        time = datetime.strptime(m["date"], "%Y-%m-%dT%H:%M:%S")
+        if time_unit == "month":
+            time = time.month
+        elif time_unit == "day":
+            time = time.weekday()
+        time_dist[time] += 1
+
+    return time_dist
 
 
-def get_time_distribution(data, parsed_dates, first_message_date):
-    time_distribution = defaultdict(int)
-    for msg in data:
-        date = parsed_dates[msg["date"]]
-        time_distribution[(date.year, date.month)] += 1
-    return [
-        {
-            "label": year,
-            "data": [time_distribution.get((year, month), 0) for month in range(1, 13)],
-        }
-        for year in range(first_message_date.year, datetime.now().year + 1)
-    ]
-
-
-def create_figure(time_distribution):
+def create_figure(time_dist, time_unit):
     fig = go.Figure()
-    for time_dict in time_distribution:
+    for y in time_dist:
         fig.add_trace(
             go.Bar(
-                x=LABELS,
-                y=time_dict["data"],
-                name=str(time_dict["label"]),
-                text=time_dict["data"],
+                x=LABELS[time_unit],
+                y=list(time_dist[y].values()),
+                name=str(y),
                 textposition="auto",
                 hoverinfo="none",
             )
         )
-    fig.update_xaxes(title_text="Month")
-    fig.update_yaxes(title_text="Number of messages")
+    fig.update_xaxes(title_text=time_unit)
+    fig.update_yaxes(title_text="number of messages")
     fig.update_layout(
         template="plotly_white",
         legend=dict(yanchor="top", xanchor="right"),
@@ -119,39 +137,53 @@ def create_figure(time_distribution):
     )
 
 
-def calculate_statistics(data):
-    joins_by_link = [
-        msg
-        for msg in data["messages"]
-        if msg["type"] == "service" and msg["action"] == "join_group_by_link"
-    ]
+def calculate_statistics(dt_by_year, first_t):
+    num_messages = 0
+    num_link_joins_by_year = defaultdict(int)
+    num_invite_joins_by_year = defaultdict(int)
+    msgs_by_year = defaultdict(dict)
+    top_users_by_year = defaultdict(dict)
 
-    invitations = [
-        msg
-        for msg in data["messages"]
-        if msg["type"] == "service" and msg["action"] == "invite_members"
-    ]
-    messages = [msg for msg in data["messages"] if msg["type"] == "message"]
-    parsed_dates = parse_dates(messages)
-    timestamps = list(parsed_dates.values())
-    first_message_date = min(timestamps)
+    monthly_time_dist_by_year = defaultdict(dict)
+    daily_time_dist_by_year = defaultdict(dict)
 
-    user_messages_per_year = get_user_messages_per_year(messages, parsed_dates)
-    top_users_per_year = get_top_users_per_year(user_messages_per_year)
+    for y in dt_by_year:
+        num_messages = num_messages + len(dt_by_year[y])
 
-    time_distribution = get_time_distribution(
-        messages, parsed_dates, first_message_date
-    )
+        num_link_joins_by_year[y] = len(
+            [
+                dt
+                for dt in dt_by_year[y]
+                if dt["type"] == "service" and dt["action"] == "join_group_by_link"
+            ]
+        )
+        num_invite_joins_by_year[y] = len(
+            [
+                dt
+                for dt in dt_by_year[y]
+                if dt["type"] == "service" and dt["action"] == "invite_members"
+            ]
+        )
+        msgs_by_year[y] = [dt for dt in dt_by_year[y] if dt["type"] == "message"]
+        user_msgs_by_year = get_user_messages(msgs_by_year[y])
+        top_users_by_year[y] = get_top_users(user_msgs_by_year)
 
-    fig_html = create_figure(time_distribution)
+        monthly_time_dist_by_year[y] = get_time_dist(msgs_by_year[y], "month")
+        daily_time_dist_by_year[y] = get_time_dist(msgs_by_year[y], "day")
+
+    monthly_fig = create_figure(monthly_time_dist_by_year, "month")
+    daily_fig = create_figure(daily_time_dist_by_year, "day")
 
     return {
-        "first_message_date": first_message_date,
-        "total_messages": len(messages),
-        "total_joins": len(joins_by_link),
-        "total_invites": len(invitations),
-        "top_users_per_year": top_users_per_year,
-        "fig_html": fig_html,
+        "first_timestamp": first_t,
+        "num_messages": num_messages,
+        "num_joins": sum(num_link_joins_by_year.values()),
+        "num_invites": sum(num_invite_joins_by_year.values()),
+        "num_joins_by_year": num_link_joins_by_year,
+        "num_invites_by_year": num_invite_joins_by_year,
+        "top_users_by_year": top_users_by_year,
+        "monthly_fig": monthly_fig,
+        "daily_fig": daily_fig,
     }
 
 

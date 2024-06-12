@@ -7,23 +7,23 @@
   <h1 class="text-center mt-5">Statistics for</h1>
   <h2 class="text-center mt-1 mb-3"><mark>{{ name }}</mark></h2>
   <h4><u>General info</u></h4>
-  <p class="mb-2">Since <strong>{{ stats.first_message_date }}</strong>:</p>
+  <p class="mb-2">Since <strong>{{ " ".join(stats.first_timestamp.split("T")) }}</strong>:</p>
   <ul class="mb-4">
-    <li><strong>{{ stats.total_messages }}</strong> messages were sent</li>
-    <li>invite links were used <strong>{{ stats.total_joins }}</strong> times</li>
-    <li><strong>{{ stats.total_invites }}</strong> members were added by others</li>
+    <li><strong>{{ stats.num_messages }}</strong> messages were sent</li>
+    <li>invite links were used <strong>{{ stats.num_joins }}</strong> times</li>
+    <li><strong>{{ stats.num_invites }}</strong> members were added by others</li>
   </ul>
   <h4><u>Top users per year</u></h4>
   <ul class="mb-4">
-    {% for year, list in stats.top_users_per_year.items() %}
+    {% for year, dict in stats.top_users_by_year.items() %}
       <li class="mt-2">In <strong>{{ year }}</strong> the top 3 users were:</li>
-        {% for username, msg_number in list.items() %}
-          {{ loop.index }}. {{ username[1] }} with {{ msg_number }} messages <br>
+        {% for user, num_msg in dict.items() %}
+          {{ loop.index }}. {{ user[1] }} with {{ num_msg }} messages <br>
         {% endfor %}
     {% endfor %}
   </ul>
   <h4><u>Messages temporal distribution</u></h4>
   <div class="overflow-auto">
-    {{ stats.fig_html|safe }}
+    {{ stats.monthly_fig |safe }}
   </div>
 {% endblock %}
